@@ -28,14 +28,16 @@ public class UserController(IDbContextFactory<MyDbContext> contextFactory) : Con
             {
                 Id = u.Id,
                 Username = u.Username,
-                RoleName = u.Role.Name
+                RoleName = u.Role.Name,
+                Email = u.Email,
+                Telephone = u.Telephone,
+                Date = u.Date
             }).ToListAsync();
 
         var pagedData = new PagedData<UserDto>(users, request.PageNumber, request.PageSize, totalCount);
 
         return Ok(ApiResponse<PagedData<UserDto>>.Success(pagedData, "获取用户列表成功"));
     }
-
 
     [HttpPost("GetUserById")]
     public async Task<IActionResult> GetUserById([FromBody] int id)
@@ -48,7 +50,10 @@ public class UserController(IDbContextFactory<MyDbContext> contextFactory) : Con
             {
                 Id = u.Id,
                 Username = u.Username,
-                RoleName = u.Role.Name
+                RoleName = u.Role.Name,
+                Email = u.Email,
+                Telephone = u.Telephone,
+                Date = u.Date
             }).FirstOrDefaultAsync();
 
         if (user == null)
@@ -73,7 +78,10 @@ public class UserController(IDbContextFactory<MyDbContext> contextFactory) : Con
         {
             Username = request.Username,
             Password = request.Password,
-            RoleId = request.RoleId
+            RoleId = request.RoleId,
+            Email = request.Email,
+            Telephone = request.Telephone,
+            Date = DateTime.UtcNow
         };
 
         context.Users.Add(newUser);
@@ -96,11 +104,13 @@ public class UserController(IDbContextFactory<MyDbContext> contextFactory) : Con
         user.Username = request.Username;
         user.Password = request.Password;
         user.RoleId = request.RoleId;
+        user.Email = request.Email;
+        user.Telephone = request.Telephone;
 
         context.Users.Update(user);
         await context.SaveChangesAsync();
 
-        return Ok(ApiResponse<string>.Success("用户更新成功"));
+        return Ok(ApiResponse<string>.Success("用户信息更新成功"));
     }
 
     [HttpPost("DeleteUser")]
@@ -126,6 +136,9 @@ public class UserDto
     public int Id { get; set; }
     public string Username { get; set; } = null!;
     public string RoleName { get; set; } = null!;
+    public string? Email { get; set; }
+    public string? Telephone { get; set; }
+    public DateTime Date { get; set; }
 }
 
 public class CreateUserRequest
@@ -133,6 +146,8 @@ public class CreateUserRequest
     public string Username { get; set; } = null!;
     public string Password { get; set; } = null!;
     public int RoleId { get; set; }
+    public string? Email { get; set; }
+    public string? Telephone { get; set; }
 }
 
 public class UpdateUserRequest
@@ -141,4 +156,6 @@ public class UpdateUserRequest
     public string Username { get; set; } = null!;
     public string Password { get; set; } = null!;
     public int RoleId { get; set; }
+    public string? Email { get; set; }
+    public string? Telephone { get; set; }
 }

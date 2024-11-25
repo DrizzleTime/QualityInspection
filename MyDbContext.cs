@@ -25,6 +25,9 @@ public class User
     [MaxLength(255)] public required string Password { get; set; }
     [JsonIgnore] public Role Role { get; set; } = null!;
     public int RoleId { get; set; }
+    [MaxLength(100)] public string? Email { get; set; }
+    [MaxLength(20)] public string? Telephone { get; set; }
+    public DateTime Date { get; set; } = DateTime.UtcNow;
 }
 
 public class Role
