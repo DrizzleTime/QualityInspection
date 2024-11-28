@@ -38,6 +38,7 @@ public class AuthController(IDbContextFactory<MyDbContext> contextFactory, IConf
             token,
             user = new
             {
+                user.Id,
                 user.Username,
                 Role = user.Role.Name
             }
@@ -60,6 +61,7 @@ public class AuthController(IDbContextFactory<MyDbContext> contextFactory, IConf
 
         var userInfo = new
         {
+            user.Id,
             user.Username,
             Role = user.Role.Name
         };

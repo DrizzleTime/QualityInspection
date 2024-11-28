@@ -14,8 +14,27 @@ public class MyDbContext(DbContextOptions<MyDbContext> options) : DbContext(opti
     public DbSet<ScoreLevel> ScoreLevels { get; set; }
     public DbSet<Region> Regions { get; set; }
     public DbSet<Item> Items { get; set; }
-    public DbSet<HospitalInspection> HospitalInspections { get; set; }
-    public DbSet<InspectionRecord> InspectionRecords { get; set; }
+    public DbSet<Score> Scores { get; set; }
+    public DbSet<BatchCategory> BatchCategories { get; set; }
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+
+        // 配置多对多关系
+        modelBuilder.Entity<BatchCategory>()
+            .HasKey(bc => new { bc.BatchId, bc.CategoryId }); // 复合主键
+
+        modelBuilder.Entity<BatchCategory>()
+            .HasOne(bc => bc.Batch)
+            .WithMany(b => b.BatchCategories)
+            .HasForeignKey(bc => bc.BatchId);
+
+        modelBuilder.Entity<BatchCategory>()
+            .HasOne(bc => bc.Category)
+            .WithMany(c => c.BatchCategories)
+            .HasForeignKey(bc => bc.CategoryId);
+    }
 }
 
 public class User
@@ -59,30 +78,19 @@ public class Batch
 
     public int SummarizePersonId { get; set; }
     public User SummarizePerson { get; set; } = null!;
-    public ICollection<HospitalInspection> HospitalInspections { get; set; } = new List<HospitalInspection>();
-
-    public bool DeleteFlag { get; set; }
-}
-
-public class HospitalInspection
-{
-    public int Id { get; set; }
     public int HospitalId { get; set; }
     public Hospital Hospital { get; set; } = null!;
-    public int BatchId { get; set; }
-    public Batch Batch { get; set; } = null!;
-    public ICollection<InspectionRecord> InspectionRecords { get; set; } = new List<InspectionRecord>();
+    public ICollection<BatchCategory> BatchCategories { get; set; } = new List<BatchCategory>();
     public bool DeleteFlag { get; set; }
 }
 
-public class InspectionRecord
+public class BatchCategory
 {
-    public int Id { get; set; }
-    public int HospitalInspectionId { get; set; }
-    public HospitalInspection HospitalInspection { get; set; }
-    public int ItemId { get; set; }
-    public Item Item { get; set; }
-    public int Score { get; set; }
+    public int BatchId { get; set; }
+    public Batch Batch { get; set; } = null!;
+
+    public int CategoryId { get; set; }
+    public Category Category { get; set; } = null!;
 }
 
 public class Hospital
@@ -90,7 +98,7 @@ public class Hospital
     public int Id { get; set; }
     [MaxLength(255)] [Required] public string Name { get; set; } = null!;
     [MaxLength(255)] [Required] public string? Address { get; set; }
-    public ICollection<HospitalInspection> HospitalInspections { get; set; } = new List<HospitalInspection>();
+    public ICollection<Batch> Batches { get; set; } = new List<Batch>();
     public bool DeleteFlag { get; set; }
 }
 
@@ -100,6 +108,7 @@ public class Category
     [MaxLength(255)] [Required] public string Name { get; set; } = null!;
     [MaxLength(1000)] public string? Description { get; set; }
     public ICollection<Region> Regions { get; set; } = new List<Region>();
+    public ICollection<BatchCategory> BatchCategories { get; set; } = new List<BatchCategory>();
     public bool DeleteFlag { get; set; }
 }
 
@@ -134,5 +143,20 @@ public class Item
     public Region Region { get; set; } = null!;
     public ScoreLevel? ScoreLevel { get; set; }
     public int? ScoreLevelId;
+    public bool DeleteFlag { get; set; }
+}
+
+public class Score
+{
+    public int Id { get; set; }
+    public int BatchId { get; set; }
+    public Batch Batch { get; set; } = null!;
+    public int ItemId { get; set; }
+    public Item Item { get; set; } = null!;
+    public int ScoreValue { get; set; }
+    public string? Comment { get; set; }
+    public DateTime Date { get; set; } = DateTime.UtcNow;
+    public int UserId { get; set; }
+    public User User { get; set; } = null!;
     public bool DeleteFlag { get; set; }
 }
