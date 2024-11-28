@@ -12,13 +12,27 @@ namespace QualityInspection.Controllers;
 public class CategoryController(IDbContextFactory<MyDbContext> contextFactory) : ControllerBase
 {
     [HttpPost("GetAllCategories")]
-    public async Task<IActionResult> GetAllCategories([FromBody] PagedRequest request)
+    public async Task<IActionResult> GetAllCategories([FromBody] GetCategoriesRequest request)
     {
         await using var context = await contextFactory.CreateDbContextAsync();
 
-        var totalCount = await context.Categories.CountAsync(c => !c.DeleteFlag);
-        var categories = await context.Categories
-            .Where(c => !c.DeleteFlag)
+        // 1. 根据传入的 BatchId 筛选相关类别
+        var query = context.Categories.AsQueryable();
+
+        // 如果传入了 BatchId，则通过 BatchCategory 关联表来过滤
+        if (request.BatchId.HasValue)
+        {
+            query = query.Where(c => c.BatchCategories.Any(bc => bc.BatchId == request.BatchId.Value));
+        }
+
+        // 只选择未删除的类别
+        query = query.Where(c => !c.DeleteFlag);
+
+        // 获取总数
+        var totalCount = await query.CountAsync();
+
+        // 分页查询
+        var categories = await query
             .Skip((request.PageNumber - 1) * request.PageSize)
             .Take(request.PageSize)
             .Select(c => new CategoryDto
@@ -26,12 +40,15 @@ public class CategoryController(IDbContextFactory<MyDbContext> contextFactory) :
                 Id = c.Id,
                 Name = c.Name,
                 Description = c.Description
-            }).ToListAsync();
+            })
+            .ToListAsync();
 
+        // 构造分页数据
         var pagedData = new PagedData<CategoryDto>(categories, request.PageNumber, request.PageSize, totalCount);
 
         return Ok(ApiResponse<PagedData<CategoryDto>>.Success(pagedData, "获取类别列表成功"));
     }
+
 
     [HttpPost("GetCategoryById")]
     public async Task<IActionResult> GetCategoryById([FromBody] int id)
@@ -115,6 +132,10 @@ public class CategoryDto
     public int Id { get; set; }
     public string Name { get; set; } = null!;
     public string? Description { get; set; }
+}
+public class GetCategoriesRequest : PagedRequest
+{
+    public int? BatchId { get; set; }  // 可选的批次ID，用来筛选当前批次下的类别
 }
 
 public class CreateCategoryRequest

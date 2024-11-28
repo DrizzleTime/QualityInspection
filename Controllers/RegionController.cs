@@ -12,13 +12,26 @@ namespace QualityInspection.Controllers;
 public class RegionController(IDbContextFactory<MyDbContext> contextFactory) : ControllerBase
 {
     [HttpPost("GetAllRegions")]
-    public async Task<IActionResult> GetAllRegions([FromBody] PagedRequest request)
+    public async Task<IActionResult> GetAllRegions([FromBody] GetRegionsRequest request)
     {
         await using var context = await contextFactory.CreateDbContextAsync();
 
-        var totalCount = await context.Regions.CountAsync(r => !r.DeleteFlag);
-        var regions = await context.Regions
-            .Where(r => !r.DeleteFlag)
+        var query = context.Regions.AsQueryable();
+
+        // 1. 如果传入了 CategoryId，则过滤出属于该类别的区域
+        if (request.CategoryId.HasValue)
+        {
+            query = query.Where(r => r.CategoryId == request.CategoryId.Value);
+        }
+
+        // 2. 只选择未删除的区域
+        query = query.Where(r => !r.DeleteFlag);
+
+        // 获取总数
+        var totalCount = await query.CountAsync();
+
+        // 分页查询
+        var regions = await query
             .Skip((request.PageNumber - 1) * request.PageSize)
             .Take(request.PageSize)
             .Select(r => new RegionDto
@@ -28,12 +41,15 @@ public class RegionController(IDbContextFactory<MyDbContext> contextFactory) : C
                 Description = r.Description,
                 CategoryId = r.CategoryId,
                 CategoryName = r.Category.Name
-            }).ToListAsync();
+            })
+            .ToListAsync();
 
+        // 构造分页数据
         var pagedData = new PagedData<RegionDto>(regions, request.PageNumber, request.PageSize, totalCount);
 
         return Ok(ApiResponse<PagedData<RegionDto>>.Success(pagedData, "获取区域列表成功"));
     }
+
 
     [HttpPost("GetRegionById")]
     public async Task<IActionResult> GetRegionById([FromBody] int id)
@@ -123,6 +139,11 @@ public class RegionDto
     public string? Description { get; set; }
     public int CategoryId { get; set; }
     public string CategoryName { get; set; } = null!;
+}
+
+public class GetRegionsRequest : PagedRequest
+{
+    public int? CategoryId { get; set; } // 可选的类别ID，用来筛选当前类别下的区域
 }
 
 public class CreateRegionRequest

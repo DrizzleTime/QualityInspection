@@ -12,13 +12,26 @@ namespace QualityInspection.Controllers;
 public class ItemController(IDbContextFactory<MyDbContext> contextFactory) : ControllerBase
 {
     [HttpPost("GetAllItems")]
-    public async Task<IActionResult> GetAllItems([FromBody] PagedRequest request)
+    public async Task<IActionResult> GetAllItems([FromBody] GetItemsRequest request)
     {
         await using var context = await contextFactory.CreateDbContextAsync();
 
-        var totalCount = await context.Items.CountAsync(i => !i.DeleteFlag);
-        var items = await context.Items
-            .Where(i => !i.DeleteFlag)
+        var query = context.Items.AsQueryable();
+
+        // 如果传入了 RegionId，则过滤出该区域的所有项
+        if (request.RegionId.HasValue)
+        {
+            query = query.Where(i => i.RegionId == request.RegionId.Value);
+        }
+
+        // 只选择未删除的项
+        query = query.Where(i => !i.DeleteFlag);
+
+        // 获取总数
+        var totalCount = await query.CountAsync();
+
+        // 分页查询
+        var items = await query
             .Skip((request.PageNumber - 1) * request.PageSize)
             .Take(request.PageSize)
             .Select(i => new ItemDto
@@ -31,12 +44,15 @@ public class ItemController(IDbContextFactory<MyDbContext> contextFactory) : Con
                 RegionName = i.Region.Name,
                 ScoreLevelId = i.ScoreLevelId,
                 ScoreLevelName = i.ScoreLevel != null ? i.ScoreLevel.Name : null
-            }).ToListAsync();
+            })
+            .ToListAsync();
 
+        // 构造分页数据
         var pagedData = new PagedData<ItemDto>(items, request.PageNumber, request.PageSize, totalCount);
 
-        return Ok(ApiResponse<PagedData<ItemDto>>.Success(pagedData, "获取项目列表成功"));
+        return Ok(ApiResponse<PagedData<ItemDto>>.Success(pagedData, "获取检查条目列表成功"));
     }
+
 
     [HttpPost("GetItemById")]
     public async Task<IActionResult> GetItemById([FromBody] int id)
@@ -58,10 +74,10 @@ public class ItemController(IDbContextFactory<MyDbContext> contextFactory) : Con
 
         if (item == null)
         {
-            return NotFound(ApiResponse<string>.Fail("项目未找到"));
+            return NotFound(ApiResponse<string>.Fail("检查条目未找到"));
         }
 
-        return Ok(ApiResponse<ItemDto>.Success(item, "获取项目信息成功"));
+        return Ok(ApiResponse<ItemDto>.Success(item, "获取检查条目信息成功"));
     }
 
     [HttpPost("CreateItem")]
@@ -81,7 +97,7 @@ public class ItemController(IDbContextFactory<MyDbContext> contextFactory) : Con
         context.Items.Add(newItem);
         await context.SaveChangesAsync();
 
-        return Ok(ApiResponse<string>.Success("项目创建成功"));
+        return Ok(ApiResponse<string>.Success("检查条目创建成功"));
     }
 
     [HttpPost("UpdateItem")]
@@ -92,7 +108,7 @@ public class ItemController(IDbContextFactory<MyDbContext> contextFactory) : Con
 
         if (item == null)
         {
-            return NotFound(ApiResponse<string>.Fail("项目未找到"));
+            return NotFound(ApiResponse<string>.Fail("检查条目未找到"));
         }
 
         item.Name = request.Name;
@@ -104,7 +120,7 @@ public class ItemController(IDbContextFactory<MyDbContext> contextFactory) : Con
         context.Items.Update(item);
         await context.SaveChangesAsync();
 
-        return Ok(ApiResponse<string>.Success("项目更新成功"));
+        return Ok(ApiResponse<string>.Success("检查条目更新成功"));
     }
 
     [HttpPost("DeleteItem")]
@@ -115,14 +131,14 @@ public class ItemController(IDbContextFactory<MyDbContext> contextFactory) : Con
 
         if (item == null)
         {
-            return NotFound(ApiResponse<string>.Fail("项目未找到"));
+            return NotFound(ApiResponse<string>.Fail("检查条目未找到"));
         }
 
         item.DeleteFlag = true;
         context.Items.Update(item);
         await context.SaveChangesAsync();
 
-        return Ok(ApiResponse<string>.Success("项目删除成功"));
+        return Ok(ApiResponse<string>.Success("检查条目删除成功"));
     }
 }
 
@@ -136,6 +152,11 @@ public class ItemDto
     public string RegionName { get; set; } = null!;
     public int? ScoreLevelId { get; set; }
     public string? ScoreLevelName { get; set; }
+}
+
+public class GetItemsRequest : PagedRequest
+{
+    public int? RegionId { get; set; } // 可选的区域ID，用来筛选当前区域下的检查项
 }
 
 public class CreateItemRequest

@@ -37,7 +37,8 @@ namespace QualityInspection.Controllers
                     Note = b.Note,
                     HospitalId = b.HospitalId,
                     SummarizePersonId = b.SummarizePersonId,
-                    HospitalName = b.Hospital.Name // 假设 Batch 和 Hospital 之间有关联
+                    HospitalName = b.Hospital.Name,
+                    CategoryNames = b.BatchCategories.Select(bc => bc.Category.Name).ToList()
                 }).ToListAsync();
 
             var pagedData = new PagedData<BatchDto>(batches, request.PageNumber, request.PageSize, totalCount);
