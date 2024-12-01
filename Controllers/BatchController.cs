@@ -108,17 +108,11 @@ namespace QualityInspection.Controllers
             // 创建新的批次对象
             var newBatch = new Batch
             {
+                Status = 0,
                 Name = request.Name,
-                StartTime = request.StartTime,
-                EndTime = request.EndTime,
-                Status = request.Status,
-                SummarizeProblem = request.SummarizeProblem,
-                SummarizeHighlight = request.SummarizeHighlight,
-                SummarizeNeedImprove = request.SummarizeNeedImprove,
                 Note = request.Note,
-                SummarizePersonId = request.SummarizePersonId,
                 HospitalId = request.HospitalId,
-                InspectorId = request.InspectorId // 新增属性：检验员ID
+                InspectorId = request.InspectorId
             };
 
             // 将新批次添加到数据库
@@ -168,7 +162,6 @@ namespace QualityInspection.Controllers
             batch.InspectorId = request.InspectorId;
             context.Batches.Update(batch);
             await context.SaveChangesAsync();
-
             return Ok(ApiResponse<string>.Success("批次更新成功"));
         }
 
@@ -191,7 +184,41 @@ namespace QualityInspection.Controllers
 
             return Ok(ApiResponse<string>.Success("批次删除成功"));
         }
+
+        // 完成批次
+        [HttpPost("CompleteBatch")]
+        public async Task<IActionResult> CompleteBatch([FromBody] CompleteBatchRequest request)
+        {
+            await using var context = await contextFactory.CreateDbContextAsync();
+
+            var batch = await context.Batches.FirstOrDefaultAsync(b => b.Id == request.Id && !b.DeleteFlag);
+
+            if (batch == null)
+            {
+                return NotFound(ApiResponse<string>.Fail("批次未找到"));
+            }
+
+            // 更新批次信息
+            batch.SummarizeProblem = request.SummarizeProblem;
+            batch.SummarizeHighlight = request.SummarizeHighlight;
+            batch.SummarizeNeedImprove = request.SummarizeNeedImprove;
+            batch.Note = request.Note;
+            batch.Status = 1;
+            batch.SummarizePersonId = GetCurrentUserId();
+
+            context.Batches.Update(batch);
+            await context.SaveChangesAsync();
+
+            return Ok(ApiResponse<string>.Success("批次完成成功"));
+        }
+
+        private int? GetCurrentUserId()
+        {
+            var userIdClaim = User.Claims.FirstOrDefault(c => c.Type == "userId");
+            return userIdClaim != null ? int.Parse(userIdClaim.Value) : null;
+        }
     }
+
 
     // DTO类
     public class BatchDto
@@ -206,8 +233,8 @@ namespace QualityInspection.Controllers
         public string? SummarizeNeedImprove { get; set; }
         public string? Note { get; set; }
         public int HospitalId { get; set; }
-        public int? SummarizePersonId { get; set; } // 修改为可空
-        public int? InspectorId { get; set; } // 修改为可空
+        public int? SummarizePersonId { get; set; }
+        public int? InspectorId { get; set; }
         public string HospitalName { get; set; } = null!;
         public List<string> CategoryNames { get; set; } = new List<string>();
     }
@@ -217,14 +244,7 @@ namespace QualityInspection.Controllers
     public class CreateBatchRequest
     {
         public string Name { get; set; } = null!;
-        public DateTime StartTime { get; set; }
-        public DateTime? EndTime { get; set; }
-        public int Status { get; set; } = 1;
-        public string? SummarizeProblem { get; set; }
-        public string? SummarizeHighlight { get; set; }
-        public string? SummarizeNeedImprove { get; set; }
         public string? Note { get; set; }
-        public int? SummarizePersonId { get; set; }
         public int HospitalId { get; set; }
         public int? InspectorId { get; set; }
         public List<int> CategoryIds { get; set; } = new();
@@ -233,5 +253,21 @@ namespace QualityInspection.Controllers
     public class UpdateBatchRequest : CreateBatchRequest
     {
         public int Id { get; set; }
+        public DateTime StartTime { get; set; }
+        public DateTime? EndTime { get; set; }
+        public int Status { get; set; } = 1;
+        public string? SummarizeProblem { get; set; }
+        public string? SummarizeHighlight { get; set; }
+        public string? SummarizeNeedImprove { get; set; }
+        public int? SummarizePersonId { get; set; }
+    }
+
+    public class CompleteBatchRequest
+    {
+        public int Id { get; set; }
+        public string? SummarizeProblem { get; set; }
+        public string? SummarizeHighlight { get; set; }
+        public string? SummarizeNeedImprove { get; set; }
+        public string? Note { get; set; }
     }
 }

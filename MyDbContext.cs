@@ -66,7 +66,7 @@ public class Batch
 
     public DateTime? EndTime { get; set; }
 
-    public int Status { get; set; } = 1;
+    public int Status { get; set; }
 
     [MaxLength(1000)] public string? SummarizeProblem { get; set; }
 
