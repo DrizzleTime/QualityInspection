@@ -76,8 +76,10 @@ public class Batch
 
     [MaxLength(1000)] public string? Note { get; set; }
 
-    public int SummarizePersonId { get; set; }
-    public User SummarizePerson { get; set; } = null!;
+    public int? SummarizePersonId { get; set; }
+    public User? SummarizePerson { get; set; }
+    public int? InspectorId { get; set; }
+    public User? Inspector { get; set; }
     public int HospitalId { get; set; }
     public Hospital Hospital { get; set; } = null!;
     public ICollection<BatchCategory> BatchCategories { get; set; } = new List<BatchCategory>();

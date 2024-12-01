@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using QualityInspection.Request;
@@ -17,12 +18,27 @@ namespace QualityInspection.Controllers
         {
             await using var context = await contextFactory.CreateDbContextAsync();
 
-            var totalCount = await context.Batches
-                .Where(b => !b.DeleteFlag)
-                .CountAsync();
+            // 获取当前用户的身份信息
+            var userIdClaim = User.Claims.FirstOrDefault(c => c.Type == "userId");
+            var roleClaim = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role);
 
-            var batches = await context.Batches
-                .Where(b => !b.DeleteFlag)
+            int? userId = userIdClaim != null ? int.Parse(userIdClaim.Value) : (int?)null;
+            string role = roleClaim?.Value ?? string.Empty;
+
+            // 创建查询
+            var query = context.Batches.AsQueryable().Where(b => !b.DeleteFlag);
+
+            // 如果用户是Inspector，则只获取InspectorId为当前用户的批次
+            if (role == "Inspector" && userId.HasValue)
+            {
+                query = query.Where(b => b.InspectorId == userId);
+            }
+
+            // 获取总数量（用于分页）
+            var totalCount = await query.CountAsync();
+
+            // 分页数据
+            var batches = await query
                 .Skip((request.PageNumber - 1) * request.PageSize)
                 .Take(request.PageSize)
                 .Select(b => new BatchDto
@@ -38,6 +54,7 @@ namespace QualityInspection.Controllers
                     Note = b.Note,
                     HospitalId = b.HospitalId,
                     SummarizePersonId = b.SummarizePersonId,
+                    InspectorId = b.InspectorId,
                     HospitalName = b.Hospital.Name,
                     CategoryNames = b.BatchCategories.Select(bc => bc.Category.Name).ToList()
                 }).ToListAsync();
@@ -69,8 +86,9 @@ namespace QualityInspection.Controllers
                     Note = b.Note,
                     HospitalId = b.HospitalId,
                     SummarizePersonId = b.SummarizePersonId,
-                    HospitalName = b.Hospital.Name, // 假设 Batch 和 Hospital 之间有关联
-                    CategoryNames = b.BatchCategories.Select(bc => bc.Category.Name).ToList() // 获取批次关联的类别名称
+                    InspectorId = b.InspectorId,
+                    HospitalName = b.Hospital.Name,
+                    CategoryNames = b.BatchCategories.Select(bc => bc.Category.Name).ToList()
                 }).FirstOrDefaultAsync();
 
             if (batch == null)
@@ -80,7 +98,6 @@ namespace QualityInspection.Controllers
 
             return Ok(ApiResponse<BatchDto>.Success(batch, "获取批次信息成功"));
         }
-
 
         // 创建批次
         [HttpPost("CreateBatch")]
@@ -100,7 +117,8 @@ namespace QualityInspection.Controllers
                 SummarizeNeedImprove = request.SummarizeNeedImprove,
                 Note = request.Note,
                 SummarizePersonId = request.SummarizePersonId,
-                HospitalId = request.HospitalId
+                HospitalId = request.HospitalId,
+                InspectorId = request.InspectorId // 新增属性：检验员ID
             };
 
             // 将新批次添加到数据库
@@ -123,7 +141,6 @@ namespace QualityInspection.Controllers
 
             return Ok(ApiResponse<string>.Success("批次创建成功"));
         }
-
 
         // 更新批次
         [HttpPost("UpdateBatch")]
@@ -148,7 +165,7 @@ namespace QualityInspection.Controllers
             batch.Note = request.Note;
             batch.SummarizePersonId = request.SummarizePersonId;
             batch.HospitalId = request.HospitalId;
-
+            batch.InspectorId = request.InspectorId;
             context.Batches.Update(batch);
             await context.SaveChangesAsync();
 
@@ -189,10 +206,9 @@ namespace QualityInspection.Controllers
         public string? SummarizeNeedImprove { get; set; }
         public string? Note { get; set; }
         public int HospitalId { get; set; }
-        public int SummarizePersonId { get; set; }
+        public int? SummarizePersonId { get; set; } // 修改为可空
+        public int? InspectorId { get; set; } // 修改为可空
         public string HospitalName { get; set; } = null!;
-
-        // 新增属性：批次关联的类别信息
         public List<string> CategoryNames { get; set; } = new List<string>();
     }
 
@@ -208,12 +224,11 @@ namespace QualityInspection.Controllers
         public string? SummarizeHighlight { get; set; }
         public string? SummarizeNeedImprove { get; set; }
         public string? Note { get; set; }
-        public int SummarizePersonId { get; set; }
+        public int? SummarizePersonId { get; set; }
         public int HospitalId { get; set; }
-
-        public List<int> CategoryIds { get; set; } = new List<int>();
+        public int? InspectorId { get; set; }
+        public List<int> CategoryIds { get; set; } = new();
     }
-
 
     public class UpdateBatchRequest : CreateBatchRequest
     {
