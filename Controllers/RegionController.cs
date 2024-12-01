@@ -11,6 +11,7 @@ namespace QualityInspection.Controllers;
 [Authorize(Roles = "Administrator")]
 public class RegionController(IDbContextFactory<MyDbContext> contextFactory) : ControllerBase
 {
+    [AllowAnonymous]
     [HttpPost("GetAllRegions")]
     public async Task<IActionResult> GetAllRegions([FromBody] GetRegionsRequest request)
     {
@@ -50,7 +51,7 @@ public class RegionController(IDbContextFactory<MyDbContext> contextFactory) : C
         return Ok(ApiResponse<PagedData<RegionDto>>.Success(pagedData, "获取区域列表成功"));
     }
 
-
+    [AllowAnonymous]
     [HttpPost("GetRegionById")]
     public async Task<IActionResult> GetRegionById([FromBody] int id)
     {
@@ -129,6 +130,31 @@ public class RegionController(IDbContextFactory<MyDbContext> contextFactory) : C
         await context.SaveChangesAsync();
 
         return Ok(ApiResponse<string>.Success("区域删除成功"));
+    }
+
+    [HttpPost("BatchDeleteRegionsByCategoryId")]
+    public async Task<IActionResult> BatchDeleteRegionsByCategoryId([FromBody] int categoryId)
+    {
+        await using var context = await contextFactory.CreateDbContextAsync();
+
+        var regions = await context.Regions
+            .Where(r => r.CategoryId == categoryId && !r.DeleteFlag)
+            .ToListAsync();
+
+        if (!regions.Any())
+        {
+            return NotFound(ApiResponse<string>.Fail("未找到属于该类别的区域"));
+        }
+
+        foreach (var region in regions)
+        {
+            region.DeleteFlag = true;
+        }
+
+        context.Regions.UpdateRange(regions);
+        await context.SaveChangesAsync();
+
+        return Ok(ApiResponse<string>.Success("批量删除区域成功"));
     }
 }
 

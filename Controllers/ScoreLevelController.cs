@@ -11,6 +11,7 @@ namespace QualityInspection.Controllers;
 [Authorize(Roles = "Administrator")]
 public class ScoreLevelController(IDbContextFactory<MyDbContext> contextFactory) : ControllerBase
 {
+    [AllowAnonymous]
     [HttpPost("GetAllScoreLevels")]
     public async Task<IActionResult> GetAllScoreLevels([FromBody] PagedRequest request)
     {
@@ -35,6 +36,7 @@ public class ScoreLevelController(IDbContextFactory<MyDbContext> contextFactory)
         return Ok(ApiResponse<PagedData<ScoreLevelDto>>.Success(pagedData, "获取评分等级列表成功"));
     }
 
+    [AllowAnonymous]
     [HttpPost("GetScoreLevelById")]
     public async Task<IActionResult> GetScoreLevelById([FromBody] int id)
     {

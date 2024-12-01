@@ -11,6 +11,7 @@ namespace QualityInspection.Controllers;
 [Authorize(Roles = "Administrator, ProjectManager, Inspector, LeadInspector")]
 public class ScoreController(IDbContextFactory<MyDbContext> contextFactory) : ControllerBase
 {
+    [AllowAnonymous]
     [HttpPost("GetAllScores")]
     public async Task<IActionResult> GetAllScores([FromBody] GetScoresRequest request)
     {
@@ -65,8 +66,8 @@ public class ScoreController(IDbContextFactory<MyDbContext> contextFactory) : Co
         return Ok(ApiResponse<PagedData<ScoreDto>>.Success(pagedData, "获取打分列表成功"));
     }
 
-
     // 获取某个打分记录（根据ID）
+    [AllowAnonymous]
     [HttpPost("GetScoreById")]
     public async Task<IActionResult> GetScoreById([FromBody] int id)
     {

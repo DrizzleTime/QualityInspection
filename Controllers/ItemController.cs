@@ -11,6 +11,7 @@ namespace QualityInspection.Controllers;
 [Authorize(Roles = "Administrator")]
 public class ItemController(IDbContextFactory<MyDbContext> contextFactory) : ControllerBase
 {
+    [AllowAnonymous]
     [HttpPost("GetAllItems")]
     public async Task<IActionResult> GetAllItems([FromBody] GetItemsRequest request)
     {
@@ -53,7 +54,7 @@ public class ItemController(IDbContextFactory<MyDbContext> contextFactory) : Con
         return Ok(ApiResponse<PagedData<ItemDto>>.Success(pagedData, "获取检查条目列表成功"));
     }
 
-
+    [AllowAnonymous]
     [HttpPost("GetItemById")]
     public async Task<IActionResult> GetItemById([FromBody] int id)
     {
@@ -139,6 +140,31 @@ public class ItemController(IDbContextFactory<MyDbContext> contextFactory) : Con
         await context.SaveChangesAsync();
 
         return Ok(ApiResponse<string>.Success("检查条目删除成功"));
+    }
+
+    [HttpPost("BatchDeleteItemsByRegionId")]
+    public async Task<IActionResult> BatchDeleteItemsByRegionId([FromBody] int regionId)
+    {
+        await using var context = await contextFactory.CreateDbContextAsync();
+
+        var items = await context.Items
+            .Where(i => i.RegionId == regionId && !i.DeleteFlag)
+            .ToListAsync();
+
+        if (!items.Any())
+        {
+            return NotFound(ApiResponse<string>.Fail("未找到属于该区域的检查项"));
+        }
+
+        foreach (var item in items)
+        {
+            item.DeleteFlag = true;
+        }
+
+        context.Items.UpdateRange(items);
+        await context.SaveChangesAsync();
+
+        return Ok(ApiResponse<string>.Success("批量删除检查项成功"));
     }
 }
 

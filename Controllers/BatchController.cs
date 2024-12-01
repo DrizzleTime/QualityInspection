@@ -11,6 +11,7 @@ namespace QualityInspection.Controllers
     [Authorize(Roles = "Administrator, LeadInspector")]
     public class BatchController(IDbContextFactory<MyDbContext> contextFactory) : ControllerBase
     {
+        [AllowAnonymous]
         [HttpPost("GetAllBatches")]
         public async Task<IActionResult> GetAllBatches([FromBody] PagedRequest request)
         {
@@ -47,6 +48,7 @@ namespace QualityInspection.Controllers
         }
 
         // 获取某个批次的详细信息
+        [AllowAnonymous]
         [HttpPost("GetBatchById")]
         public async Task<IActionResult> GetBatchById([FromBody] int id)
         {

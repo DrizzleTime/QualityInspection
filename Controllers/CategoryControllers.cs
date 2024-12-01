@@ -11,6 +11,7 @@ namespace QualityInspection.Controllers;
 [Authorize(Roles = "Administrator")]
 public class CategoryController(IDbContextFactory<MyDbContext> contextFactory) : ControllerBase
 {
+    [AllowAnonymous]
     [HttpPost("GetAllCategories")]
     public async Task<IActionResult> GetAllCategories([FromBody] GetCategoriesRequest request)
     {
@@ -49,7 +50,7 @@ public class CategoryController(IDbContextFactory<MyDbContext> contextFactory) :
         return Ok(ApiResponse<PagedData<CategoryDto>>.Success(pagedData, "获取类别列表成功"));
     }
 
-
+    [AllowAnonymous]
     [HttpPost("GetCategoryById")]
     public async Task<IActionResult> GetCategoryById([FromBody] int id)
     {

@@ -11,6 +11,7 @@ namespace QualityInspection.Controllers;
 [Authorize(Roles = "Administrator")]
 public class HospitalController(IDbContextFactory<MyDbContext> contextFactory) : ControllerBase
 {
+    [AllowAnonymous]
     [HttpPost("GetAllHospitals")]
     public async Task<IActionResult> GetAllHospitals([FromBody] PagedRequest request)
     {
@@ -33,6 +34,7 @@ public class HospitalController(IDbContextFactory<MyDbContext> contextFactory) :
         return Ok(ApiResponse<PagedData<HospitalDto>>.Success(pagedData, "获取医院列表成功"));
     }
 
+    [AllowAnonymous]
     [HttpPost("GetHospitalById")]
     public async Task<IActionResult> GetHospitalById([FromBody] int id)
     {
