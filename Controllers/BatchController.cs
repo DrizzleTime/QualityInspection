@@ -8,7 +8,7 @@ namespace QualityInspection.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize(Roles = "Administrator, Manager, Supervisor")]
+    [Authorize(Roles = "Administrator, LeadInspector")]
     public class BatchController(IDbContextFactory<MyDbContext> contextFactory) : ControllerBase
     {
         [HttpPost("GetAllBatches")]

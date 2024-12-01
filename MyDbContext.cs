@@ -40,8 +40,8 @@ public class MyDbContext(DbContextOptions<MyDbContext> options) : DbContext(opti
 public class User
 {
     public int Id { get; set; }
-    [MaxLength(255)] public required string Username { get; set; }
-    [MaxLength(255)] public required string Password { get; set; }
+    [MaxLength(255)] [Required] public string Username { get; set; } = null!;
+    [MaxLength(255)] [Required] public string Password { get; set; } = null!;
     [JsonIgnore] public Role Role { get; set; } = null!;
     public int RoleId { get; set; }
     [MaxLength(100)] public string? Email { get; set; }
