@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -8,19 +9,25 @@ namespace QualityInspection.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Roles = "Administrator")]
 public class UserController(IDbContextFactory<MyDbContext> contextFactory) : ControllerBase
 {
+    [Authorize(Roles = "Administrator,LeadInspector")]
     [HttpPost("GetAllUsers")]
-    public async Task<IActionResult> GetAllUsers([FromBody] PagedRequest request)
+    public async Task<IActionResult> GetAllUsers([FromBody] GetAllUsersRequest request)
     {
         await using var context = await contextFactory.CreateDbContextAsync();
 
-        // 获取用户的总数
-        var totalCount = await context.Users.CountAsync();
+        // 查询用户的总数（如果提供了角色ID，则只查询该角色的用户数量）
+        var query = context.Users.AsQueryable();
+        if (request.RoleId.HasValue)
+        {
+            query = query.Where(u => u.RoleId == request.RoleId.Value);
+        }
+
+        var totalCount = await query.CountAsync();
 
         // 分页查询
-        var users = await context.Users
+        var users = await query
             .Include(u => u.Role)
             .Skip((request.PageNumber - 1) * request.PageSize)
             .Take(request.PageSize)
@@ -39,6 +46,7 @@ public class UserController(IDbContextFactory<MyDbContext> contextFactory) : Con
         return Ok(ApiResponse<PagedData<UserDto>>.Success(pagedData, "获取用户列表成功"));
     }
 
+    [Authorize(Roles = "Administrator,LeadInspector")]
     [HttpPost("GetUserById")]
     public async Task<IActionResult> GetUserById([FromBody] int id)
     {
@@ -64,6 +72,7 @@ public class UserController(IDbContextFactory<MyDbContext> contextFactory) : Con
         return Ok(ApiResponse<UserDto>.Success(user, "获取用户信息成功"));
     }
 
+    [Authorize(Roles = "Administrator")]
     [HttpPost("CreateUser")]
     public async Task<IActionResult> CreateUser([FromBody] CreateUserRequest request)
     {
@@ -90,6 +99,7 @@ public class UserController(IDbContextFactory<MyDbContext> contextFactory) : Con
         return Ok(ApiResponse<string>.Success("用户创建成功"));
     }
 
+    [Authorize(Roles = "Administrator")]
     [HttpPost("UpdateUser")]
     public async Task<IActionResult> UpdateUser([FromBody] UpdateUserRequest request)
     {
@@ -113,6 +123,7 @@ public class UserController(IDbContextFactory<MyDbContext> contextFactory) : Con
         return Ok(ApiResponse<string>.Success("用户信息更新成功"));
     }
 
+    [Authorize(Roles = "Administrator")]
     [HttpPost("DeleteUser")]
     public async Task<IActionResult> DeleteUser([FromBody] int id)
     {
@@ -129,6 +140,11 @@ public class UserController(IDbContextFactory<MyDbContext> contextFactory) : Con
 
         return Ok(ApiResponse<string>.Success("用户删除成功"));
     }
+}
+
+public class GetAllUsersRequest : PagedRequest
+{
+    public int? RoleId { get; set; }
 }
 
 public class UserDto
