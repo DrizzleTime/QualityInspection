@@ -44,7 +44,10 @@ public class ItemController(IDbContextFactory<MyDbContext> contextFactory) : Con
                 RegionId = i.RegionId,
                 RegionName = i.Region.Name,
                 ScoreLevelId = i.ScoreLevelId,
-                ScoreLevelName = i.ScoreLevel != null ? i.ScoreLevel.Name : null
+                ScoreLevelName = i.ScoreLevel != null ? i.ScoreLevel.Name : null,
+                IsScored = request.BatchId.HasValue
+                    ? context.Scores.Any(s => s.BatchId == request.BatchId.Value && s.ItemId == i.Id)
+                    : null
             })
             .ToListAsync();
 
@@ -178,11 +181,13 @@ public class ItemDto
     public string RegionName { get; set; } = null!;
     public int? ScoreLevelId { get; set; }
     public string? ScoreLevelName { get; set; }
+    public bool? IsScored { get; set; }
 }
 
 public class GetItemsRequest : PagedRequest
 {
-    public int? RegionId { get; set; } // 可选的区域ID，用来筛选当前区域下的检查项
+    public int? RegionId { get; set; }
+    public int? BatchId { get; set; }
 }
 
 public class CreateItemRequest
