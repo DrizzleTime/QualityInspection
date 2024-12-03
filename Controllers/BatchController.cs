@@ -142,24 +142,42 @@ namespace QualityInspection.Controllers
         {
             await using var context = await contextFactory.CreateDbContextAsync();
 
-            var batch = await context.Batches.FirstOrDefaultAsync(b => b.Id == request.Id && !b.DeleteFlag);
+            var batch = await context.Batches.Include(b => b.BatchCategories)
+                .FirstOrDefaultAsync(b => b.Id == request.Id && !b.DeleteFlag);
 
             if (batch == null)
             {
                 return NotFound(ApiResponse<string>.Fail("批次未找到"));
             }
 
+            // 更新批次的基本信息
             batch.Name = request.Name;
-            batch.StartTime = request.StartTime;
-            batch.EndTime = request.EndTime;
-            batch.Status = request.Status;
-            batch.SummarizeProblem = request.SummarizeProblem;
-            batch.SummarizeHighlight = request.SummarizeHighlight;
-            batch.SummarizeNeedImprove = request.SummarizeNeedImprove;
+            batch.Status = request.Status ?? batch.Status;
+            batch.SummarizeProblem = request.SummarizeProblem ?? batch.SummarizeProblem;
+            batch.SummarizeHighlight = request.SummarizeHighlight ?? batch.SummarizeHighlight;
+            batch.SummarizeNeedImprove = request.SummarizeNeedImprove ?? batch.SummarizeNeedImprove;
             batch.Note = request.Note;
             batch.SummarizePersonId = request.SummarizePersonId;
             batch.HospitalId = request.HospitalId;
             batch.InspectorId = request.InspectorId;
+
+            // 更新批次的类别
+            if (request.CategoryIds.Any())
+            {
+                // 删除现有的批次类别关联
+                context.BatchCategories.RemoveRange(batch.BatchCategories);
+                // 重新添加批次类别关联
+                foreach (var categoryId in request.CategoryIds)
+                {
+                    var batchCategory = new BatchCategory
+                    {
+                        BatchId = batch.Id,
+                        CategoryId = categoryId
+                    };
+                    context.BatchCategories.Add(batchCategory);
+                }
+            }
+
             context.Batches.Update(batch);
             await context.SaveChangesAsync();
             return Ok(ApiResponse<string>.Success("批次更新成功"));
@@ -253,9 +271,7 @@ namespace QualityInspection.Controllers
     public class UpdateBatchRequest : CreateBatchRequest
     {
         public int Id { get; set; }
-        public DateTime StartTime { get; set; }
-        public DateTime? EndTime { get; set; }
-        public int Status { get; set; } = 1;
+        public int? Status { get; set; } = 1;
         public string? SummarizeProblem { get; set; }
         public string? SummarizeHighlight { get; set; }
         public string? SummarizeNeedImprove { get; set; }
