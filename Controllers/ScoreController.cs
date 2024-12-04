@@ -111,6 +111,15 @@ public class ScoreController(IDbContextFactory<MyDbContext> contextFactory) : Co
             return BadRequest(ApiResponse<string>.Fail("当前批次下不存在该ItemId"));
         }
 
+        // 检查是否已存在该评分
+        var existingScore = await context.Scores
+            .AnyAsync(s => s.BatchId == request.BatchId && s.ItemId == request.ItemId && !s.DeleteFlag);
+
+        if (existingScore)
+        {
+            return BadRequest(ApiResponse<string>.Fail("该项目已存在评分，不能重复评分"));
+        }
+
         // 检查打分是否超过该 Item 的最大分数
         var item = await context.Items
             .FirstOrDefaultAsync(i => i.Id == request.ItemId);
@@ -188,7 +197,6 @@ public class ScoreController(IDbContextFactory<MyDbContext> contextFactory) : Co
         // 检查是否所有评分完成
         await UpdateBatchStatusIfScoresComplete(context, batch);
 
-        await context.SaveChangesAsync();
 
         return Ok(ApiResponse<string>.Success("打分记录更新成功"));
     }
@@ -235,6 +243,8 @@ public class ScoreController(IDbContextFactory<MyDbContext> contextFactory) : Co
         {
             batch.Status = 2;
         }
+
+        await context.SaveChangesAsync();
     }
 }
 
