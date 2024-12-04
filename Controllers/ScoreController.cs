@@ -101,7 +101,7 @@ public class ScoreController(IDbContextFactory<MyDbContext> contextFactory) : Co
     {
         await using var context = await contextFactory.CreateDbContextAsync();
 
-        // 1. 检查当前批次下是否存在该 ItemId
+        // 检查当前批次下是否存在该 ItemId
         var batchExists = await context.BatchCategories
             .AnyAsync(bc => bc.BatchId == request.BatchId &&
                             bc.Category.Regions.Any(r => r.Items.Any(i => i.Id == request.ItemId)));
@@ -111,10 +111,9 @@ public class ScoreController(IDbContextFactory<MyDbContext> contextFactory) : Co
             return BadRequest(ApiResponse<string>.Fail("当前批次下不存在该ItemId"));
         }
 
-        // 2. 检查打分是否超过该 Item 的最大分数
+        // 检查打分是否超过该 Item 的最大分数
         var item = await context.Items
-            .Where(i => i.Id == request.ItemId)
-            .FirstOrDefaultAsync();
+            .FirstOrDefaultAsync(i => i.Id == request.ItemId);
 
         if (item == null)
         {
@@ -126,7 +125,7 @@ public class ScoreController(IDbContextFactory<MyDbContext> contextFactory) : Co
             return BadRequest(ApiResponse<string>.Fail($"评分值不能大于该Item的最大分数 {item.Score}"));
         }
 
-        // 3. 创建打分记录
+        // 创建打分记录
         var newScore = new Score
         {
             BatchId = request.BatchId,
@@ -138,7 +137,23 @@ public class ScoreController(IDbContextFactory<MyDbContext> contextFactory) : Co
         };
 
         context.Scores.Add(newScore);
+
+        // 更新批次状态为 1
+        var batch = await context.Batches.FirstOrDefaultAsync(b => b.Id == request.BatchId);
+        if (batch == null)
+        {
+            return NotFound(ApiResponse<string>.Fail("指定的批次未找到"));
+        }
+
+        if (batch.Status == 0) // 如果状态为0，则更新为1
+        {
+            batch.Status = 1;
+        }
+
         await context.SaveChangesAsync();
+
+        // 检查是否所有评分完成
+        await UpdateBatchStatusIfScoresComplete(context, batch);
 
         return Ok(ApiResponse<string>.Success("打分记录创建成功"));
     }
@@ -162,10 +177,22 @@ public class ScoreController(IDbContextFactory<MyDbContext> contextFactory) : Co
         score.Comment = request.Comment;
 
         context.Scores.Update(score);
+
+        // 获取批次并检查状态
+        var batch = await context.Batches.FirstOrDefaultAsync(b => b.Id == score.BatchId);
+        if (batch == null)
+        {
+            return NotFound(ApiResponse<string>.Fail("关联的批次未找到"));
+        }
+
+        // 检查是否所有评分完成
+        await UpdateBatchStatusIfScoresComplete(context, batch);
+
         await context.SaveChangesAsync();
 
         return Ok(ApiResponse<string>.Success("打分记录更新成功"));
     }
+
 
     // 删除打分记录（软删除）
     [HttpPost("DeleteScore")]
@@ -186,6 +213,28 @@ public class ScoreController(IDbContextFactory<MyDbContext> contextFactory) : Co
         await context.SaveChangesAsync();
 
         return Ok(ApiResponse<string>.Success("打分记录删除成功"));
+    }
+
+    private async Task UpdateBatchStatusIfScoresComplete(MyDbContext context, Batch batch)
+    {
+        // 获取批次关联的所有Item ID
+        var batchItemIds = await context.BatchCategories
+            .Where(bc => bc.BatchId == batch.Id)
+            .SelectMany(bc => bc.Category.Regions.SelectMany(r => r.Items.Select(i => i.Id)))
+            .ToListAsync();
+
+        // 获取已评分的Item ID
+        var scoredItemIds = await context.Scores
+            .Where(s => s.BatchId == batch.Id && !s.DeleteFlag)
+            .Select(s => s.ItemId)
+            .Distinct()
+            .ToListAsync();
+
+        // 如果所有Item都已评分，则更新批次状态为2
+        if (batchItemIds.All(id => scoredItemIds.Contains(id)))
+        {
+            batch.Status = 2;
+        }
     }
 }
 

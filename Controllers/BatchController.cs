@@ -216,12 +216,17 @@ namespace QualityInspection.Controllers
                 return NotFound(ApiResponse<string>.Fail("批次未找到"));
             }
 
+            if (batch.Status != 2)
+            {
+                return BadRequest(ApiResponse<string>.Fail("批次未完成评分，无法总结"));
+            }
+
             // 更新批次信息
             batch.SummarizeProblem = request.SummarizeProblem;
             batch.SummarizeHighlight = request.SummarizeHighlight;
             batch.SummarizeNeedImprove = request.SummarizeNeedImprove;
             batch.Note = request.Note;
-            batch.Status = 1;
+            batch.Status = 3;
             batch.SummarizePersonId = GetCurrentUserId();
 
             context.Batches.Update(batch);
@@ -229,6 +234,7 @@ namespace QualityInspection.Controllers
 
             return Ok(ApiResponse<string>.Success("批次完成成功"));
         }
+
 
         private int? GetCurrentUserId()
         {
