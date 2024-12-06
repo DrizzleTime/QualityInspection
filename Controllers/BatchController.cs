@@ -227,19 +227,12 @@ namespace QualityInspection.Controllers
             batch.SummarizeNeedImprove = request.SummarizeNeedImprove;
             batch.Note = request.Note;
             batch.Status = 3;
-            batch.SummarizePersonId = GetCurrentUserId();
-
+            var userIdClaim = User.Claims.FirstOrDefault(c => c.Type == "UserId");
+            batch.SummarizePersonId = userIdClaim != null ? int.Parse(userIdClaim.Value) : null;
             context.Batches.Update(batch);
             await context.SaveChangesAsync();
 
             return Ok(ApiResponse<string>.Success("批次完成成功"));
-        }
-
-
-        private int? GetCurrentUserId()
-        {
-            var userIdClaim = User.Claims.FirstOrDefault(c => c.Type == "userId");
-            return userIdClaim != null ? int.Parse(userIdClaim.Value) : null;
         }
     }
 
