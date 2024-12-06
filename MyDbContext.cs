@@ -100,7 +100,7 @@ public class Hospital
     public int Id { get; set; }
     [MaxLength(255)] [Required] public string Name { get; set; } = null!;
     [MaxLength(255)] [Required] public string? Address { get; set; }
-    public ICollection<Batch> Batches { get; set; } = new List<Batch>();
+    [JsonIgnore] public ICollection<Batch> Batches { get; set; } = new List<Batch>();
     public bool DeleteFlag { get; set; }
 }
 

@@ -26,13 +26,13 @@ public class ScoreController(IDbContextFactory<MyDbContext> contextFactory) : Co
             query = query.Where(s => s.BatchId == request.BatchId.Value);
         }
 
-        // 根据区域ID筛选（Item 通过 Region 关联）
+        // 根据区域ID筛选（Item 通过 Region 联系）
         if (request.RegionId.HasValue)
         {
             query = query.Where(s => s.Item.RegionId == request.RegionId.Value);
         }
 
-        // 根据类别ID筛选（通过 Item 的 Region 关联到 Category）
+        // 根据类别ID筛选（通过 Item 的 Region 联系到 Category）
         if (request.CategoryId.HasValue)
         {
             query = query.Where(s => s.Item.Region.CategoryId == request.CategoryId.Value);
@@ -57,13 +57,17 @@ public class ScoreController(IDbContextFactory<MyDbContext> contextFactory) : Co
                 Comment = s.Comment,
                 Date = s.Date,
                 UserId = s.UserId,
-                UserName = s.User.Username
+                UserName = s.User.Username,
+                ItemName = s.Item.Name,
+                ItemDescription = s.Item.Description,
+                ItemScore = s.Item.Score,
+                RegionName = s.Item.Region.Name,
+                CategoryName = s.Item.Region.Category.Name
             }).ToListAsync();
 
         // 构造分页数据
         var pagedData = new PagedData<ScoreDto>(scores, request.PageNumber, request.PageSize, totalCount);
-
-        return Ok(ApiResponse<PagedData<ScoreDto>>.Success(pagedData, "获取打分列表成功"));
+        return Ok(ApiResponse<object>.Success(pagedData, "获取打分列表成功"));
     }
 
     // 获取某个打分记录（根据ID）
@@ -167,7 +171,6 @@ public class ScoreController(IDbContextFactory<MyDbContext> contextFactory) : Co
         return Ok(ApiResponse<string>.Success("打分记录创建成功"));
     }
 
-
     // 更新打分记录
     [HttpPost("UpdateScore")]
     public async Task<IActionResult> UpdateScore([FromBody] UpdateScoreRequest request)
@@ -197,12 +200,10 @@ public class ScoreController(IDbContextFactory<MyDbContext> contextFactory) : Co
         // 检查是否所有评分完成
         await UpdateBatchStatusIfScoresComplete(context, batch);
 
-
         return Ok(ApiResponse<string>.Success("打分记录更新成功"));
     }
 
-
-    // 删除打分记录（软删除）
+    // 删除打分记录（转为软删除）
     [HttpPost("DeleteScore")]
     public async Task<IActionResult> DeleteScore([FromBody] int id)
     {
@@ -225,7 +226,7 @@ public class ScoreController(IDbContextFactory<MyDbContext> contextFactory) : Co
 
     private async Task UpdateBatchStatusIfScoresComplete(MyDbContext context, Batch batch)
     {
-        // 获取批次关联的所有Item ID
+        // 获取批次联系的所有Item ID
         var batchItemIds = await context.BatchCategories
             .Where(bc => bc.BatchId == batch.Id)
             .SelectMany(bc => bc.Category.Regions.SelectMany(r => r.Items.Select(i => i.Id)))
@@ -258,6 +259,11 @@ public class ScoreDto
     public DateTime Date { get; set; }
     public int UserId { get; set; }
     public string UserName { get; set; } = null!; // 打分人员用户名
+    public string ItemName { get; set; } = null!; // 项目名称
+    public string? ItemDescription { get; set; } // 项目描述
+    public int ItemScore { get; set; } // 项目最大分数
+    public string RegionName { get; set; } = null!; // 区域名称
+    public string CategoryName { get; set; } = null!; // 类别名称
 }
 
 public class GetScoresRequest : PagedRequest
