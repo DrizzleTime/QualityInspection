@@ -19,7 +19,7 @@ namespace QualityInspection.Controllers
             await using var context = await contextFactory.CreateDbContextAsync();
 
             // 获取当前用户的身份信息
-            var userIdClaim = User.Claims.FirstOrDefault(c => c.Type == "userId");
+            var userIdClaim = User.Claims.FirstOrDefault(c => c.Type == "UserId");
             var roleClaim = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role);
 
             int? userId = userIdClaim != null ? int.Parse(userIdClaim.Value) : (int?)null;

@@ -24,6 +24,16 @@ public class ItemController(IDbContextFactory<MyDbContext> contextFactory) : Con
             query = query.Where(i => i.RegionId == request.RegionId.Value);
         }
 
+        if (request.BatchId.HasValue)
+        {
+            query = from item in context.Items
+                join region in context.Regions on item.RegionId equals region.Id
+                join category in context.Categories on region.CategoryId equals category.Id
+                join batchCategory in context.BatchCategories on category.Id equals batchCategory.CategoryId
+                where batchCategory.BatchId == request.BatchId.Value
+                select item;
+        }
+
         query = query.Where(i => !i.DeleteFlag);
 
         var totalCount = await query.CountAsync();

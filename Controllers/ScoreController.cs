@@ -62,7 +62,8 @@ public class ScoreController(IDbContextFactory<MyDbContext> contextFactory) : Co
                 ItemDescription = s.Item.Description,
                 ItemScore = s.Item.Score,
                 RegionName = s.Item.Region.Name,
-                CategoryName = s.Item.Region.Category.Name
+                CategoryName = s.Item.Region.Category.Name,
+                BatchName = s.Batch.Name
             }).ToListAsync();
 
         // 构造分页数据
@@ -140,13 +141,13 @@ public class ScoreController(IDbContextFactory<MyDbContext> contextFactory) : Co
             // Item包含等级，根据问题数目计算分数
             var matchingLevel = item.ScoreLevels
                 .FirstOrDefault(sl => request.ProblemCount >= sl.LowerBound && request.ProblemCount <= sl.UpperBound);
-            
+
             if (matchingLevel == null)
             {
                 return BadRequest(ApiResponse<string>.Fail("问题数目不匹配任何等级的上下界"));
             }
 
-            finalScore = matchingLevel.Score; 
+            finalScore = matchingLevel.Score;
         }
         else
         {
@@ -158,6 +159,9 @@ public class ScoreController(IDbContextFactory<MyDbContext> contextFactory) : Co
             finalScore = request.ScoreValue ?? 0;
         }
 
+        var userIdClaim = User.Claims.FirstOrDefault(c => c.Type == "UserId");
+        int? userId = userIdClaim != null ? int.Parse(userIdClaim.Value) : null;
+
         // 创建打分记录
         var newScore = new Score
         {
@@ -165,7 +169,7 @@ public class ScoreController(IDbContextFactory<MyDbContext> contextFactory) : Co
             ItemId = request.ItemId,
             ScoreValue = finalScore,
             Comment = request.Comment,
-            UserId = request.UserId,
+            UserId = userId ?? 2,
             Date = DateTime.UtcNow
         };
 
@@ -321,6 +325,7 @@ public class ScoreDto
     public int ItemScore { get; set; } // 项目最大分数
     public string RegionName { get; set; } = null!; // 区域名称
     public string CategoryName { get; set; } = null!; // 类别名称
+    public string BatchName { get; set; }  = null!;// 批次名称
 }
 
 public class GetScoresRequest : PagedRequest
@@ -336,7 +341,6 @@ public class CreateScoreRequest
     public int ItemId { get; set; }
     public int? ScoreValue { get; set; }
     public string? Comment { get; set; }
-    public int UserId { get; set; }
     public int ProblemCount { get; set; }
 }
 
