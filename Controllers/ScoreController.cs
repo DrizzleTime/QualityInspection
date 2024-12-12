@@ -290,7 +290,7 @@ public class ScoreController(IDbContextFactory<MyDbContext> contextFactory) : Co
         // 获取批次联系的所有Item ID
         var batchItemIds = await context.BatchCategories
             .Where(bc => bc.BatchId == batch.Id)
-            .SelectMany(bc => bc.Category.Regions.SelectMany(r => r.Items.Select(i => i.Id)))
+            .SelectMany(bc => bc.Category.Regions.SelectMany(r => r.Items.Where(i => !i.DeleteFlag).Select(i => i.Id)))
             .ToListAsync();
 
         // 获取已评分的Item ID
@@ -325,7 +325,7 @@ public class ScoreDto
     public int ItemScore { get; set; } // 项目最大分数
     public string RegionName { get; set; } = null!; // 区域名称
     public string CategoryName { get; set; } = null!; // 类别名称
-    public string BatchName { get; set; }  = null!;// 批次名称
+    public string BatchName { get; set; } = null!; // 批次名称
 }
 
 public class GetScoresRequest : PagedRequest

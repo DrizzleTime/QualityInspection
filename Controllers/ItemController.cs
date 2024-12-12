@@ -19,12 +19,21 @@ public class ItemController(IDbContextFactory<MyDbContext> contextFactory) : Con
 
         var query = context.Items.AsQueryable();
 
-        if (request.RegionId.HasValue)
+        if (request is { RegionId: not null, BatchId: not null })
+        {
+            query = from item in context.Items
+                join region in context.Regions on item.RegionId equals region.Id
+                join category in context.Categories on region.CategoryId equals category.Id
+                join batchCategory in context.BatchCategories on category.Id equals batchCategory.CategoryId
+                where batchCategory.BatchId == request.BatchId.Value
+                      && item.RegionId == request.RegionId.Value
+                select item;
+        }
+        else if (request.RegionId.HasValue)
         {
             query = query.Where(i => i.RegionId == request.RegionId.Value);
         }
-
-        if (request.BatchId.HasValue)
+        else if (request.BatchId.HasValue)
         {
             query = from item in context.Items
                 join region in context.Regions on item.RegionId equals region.Id
@@ -33,6 +42,7 @@ public class ItemController(IDbContextFactory<MyDbContext> contextFactory) : Con
                 where batchCategory.BatchId == request.BatchId.Value
                 select item;
         }
+
 
         query = query.Where(i => !i.DeleteFlag);
 
