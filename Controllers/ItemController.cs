@@ -19,19 +19,15 @@ public class ItemController(IDbContextFactory<MyDbContext> contextFactory) : Con
 
         var query = context.Items.AsQueryable();
 
-        // 如果传入了 RegionId，则过滤出该区域的所有项
         if (request.RegionId.HasValue)
         {
             query = query.Where(i => i.RegionId == request.RegionId.Value);
         }
 
-        // 只选择未删除的项
         query = query.Where(i => !i.DeleteFlag);
 
-        // 获取总数
         var totalCount = await query.CountAsync();
 
-        // 分页查询
         var items = await query
             .Skip((request.PageNumber - 1) * request.PageSize)
             .Take(request.PageSize)
@@ -47,15 +43,21 @@ public class ItemController(IDbContextFactory<MyDbContext> contextFactory) : Con
                 ScoreLevelName = i.ScoreLevel != null ? i.ScoreLevel.Name : null,
                 IsScored = request.BatchId.HasValue
                     ? context.Scores.Any(s => s.BatchId == request.BatchId.Value && s.ItemId == i.Id)
+                    : null,
+                ScoreValue = request.BatchId.HasValue
+                    ? context.Scores
+                        .Where(s => s.BatchId == request.BatchId.Value && s.ItemId == i.Id)
+                        .Select(s => s.ScoreValue)
+                        .FirstOrDefault()
                     : null
             })
             .ToListAsync();
 
-        // 构造分页数据
         var pagedData = new PagedData<ItemDto>(items, request.PageNumber, request.PageSize, totalCount);
 
         return Ok(ApiResponse<PagedData<ItemDto>>.Success(pagedData, "获取检查条目列表成功"));
     }
+
 
     [AllowAnonymous]
     [HttpPost("GetItemById")]
@@ -73,8 +75,14 @@ public class ItemController(IDbContextFactory<MyDbContext> contextFactory) : Con
                 RegionId = i.RegionId,
                 RegionName = i.Region.Name,
                 ScoreLevelId = i.ScoreLevelId,
-                ScoreLevelName = i.ScoreLevel != null ? i.ScoreLevel.Name : null
-            }).FirstOrDefaultAsync();
+                ScoreLevelName = i.ScoreLevel != null ? i.ScoreLevel.Name : null,
+                IsScored = context.Scores.Any(s => s.ItemId == i.Id),
+                ScoreValue = context.Scores
+                    .Where(s => s.ItemId == i.Id)
+                    .Select(s => s.ScoreValue)
+                    .FirstOrDefault()
+            })
+            .FirstOrDefaultAsync();
 
         if (item == null)
         {
@@ -182,6 +190,7 @@ public class ItemDto
     public int? ScoreLevelId { get; set; }
     public string? ScoreLevelName { get; set; }
     public bool? IsScored { get; set; }
+    public int? ScoreValue { get; set; } // 新增属性
 }
 
 public class GetItemsRequest : PagedRequest

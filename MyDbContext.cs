@@ -156,7 +156,7 @@ public class Score
     public int ItemId { get; set; }
     public Item Item { get; set; } = null!;
     public int ScoreValue { get; set; }
-    public string? Comment { get; set; }
+    [MaxLength(500)] public string? Comment { get; set; }
     public DateTime Date { get; set; } = DateTime.UtcNow;
     public int UserId { get; set; }
     public User User { get; set; } = null!;
