@@ -39,8 +39,6 @@ public class ItemController(IDbContextFactory<MyDbContext> contextFactory) : Con
                 Score = i.Score,
                 RegionId = i.RegionId,
                 RegionName = i.Region.Name,
-                ScoreLevelId = i.ScoreLevelId,
-                ScoreLevelName = i.ScoreLevel != null ? i.ScoreLevel.Name : null,
                 IsScored = request.BatchId.HasValue
                     ? context.Scores.Any(s => s.BatchId == request.BatchId.Value && s.ItemId == i.Id)
                     : null,
@@ -49,9 +47,13 @@ public class ItemController(IDbContextFactory<MyDbContext> contextFactory) : Con
                         .Where(s => s.BatchId == request.BatchId.Value && s.ItemId == i.Id)
                         .Select(s => s.ScoreValue)
                         .FirstOrDefault()
-                    : null
+                    : null,
+                ScoreLevels = i.ScoreLevels
+                    .Select(sl => new ItemScoreLevelDto { Id = sl.Id, Name = sl.Name })
+                    .ToList()
             })
             .ToListAsync();
+
 
         var pagedData = new PagedData<ItemDto>(items, request.PageNumber, request.PageSize, totalCount);
 
@@ -74,15 +76,17 @@ public class ItemController(IDbContextFactory<MyDbContext> contextFactory) : Con
                 Score = i.Score,
                 RegionId = i.RegionId,
                 RegionName = i.Region.Name,
-                ScoreLevelId = i.ScoreLevelId,
-                ScoreLevelName = i.ScoreLevel != null ? i.ScoreLevel.Name : null,
                 IsScored = context.Scores.Any(s => s.ItemId == i.Id),
                 ScoreValue = context.Scores
                     .Where(s => s.ItemId == i.Id)
                     .Select(s => s.ScoreValue)
-                    .FirstOrDefault()
+                    .FirstOrDefault(),
+                ScoreLevels = i.ScoreLevels
+                    .Select(sl => new ItemScoreLevelDto { Id = sl.Id, Name = sl.Name })
+                    .ToList()
             })
             .FirstOrDefaultAsync();
+
 
         if (item == null)
         {
@@ -97,13 +101,17 @@ public class ItemController(IDbContextFactory<MyDbContext> contextFactory) : Con
     {
         await using var context = await contextFactory.CreateDbContextAsync();
 
+        var scoreLevels = await context.ScoreLevels
+            .Where(sl => request.ScoreLevelIds.Contains(sl.Id))
+            .ToListAsync();
+
         var newItem = new Item
         {
             Name = request.Name,
             Description = request.Description,
             Score = request.Score,
             RegionId = request.RegionId,
-            ScoreLevelId = request.ScoreLevelId
+            ScoreLevels = scoreLevels
         };
 
         context.Items.Add(newItem);
@@ -116,24 +124,33 @@ public class ItemController(IDbContextFactory<MyDbContext> contextFactory) : Con
     public async Task<IActionResult> UpdateItem([FromBody] UpdateItemRequest request)
     {
         await using var context = await contextFactory.CreateDbContextAsync();
-        var item = await context.Items.FirstOrDefaultAsync(i => i.Id == request.Id && !i.DeleteFlag);
+        var item = await context.Items.Include(i => i.ScoreLevels)
+            .FirstOrDefaultAsync(i => i.Id == request.Id && !i.DeleteFlag);
 
         if (item == null)
         {
             return NotFound(ApiResponse<string>.Fail("检查条目未找到"));
         }
 
+        var scoreLevels = await context.ScoreLevels
+            .Where(sl => request.ScoreLevelIds.Contains(sl.Id))
+            .ToListAsync();
+
+        item.ScoreLevels.Clear();
+
+        item.ScoreLevels = scoreLevels;
+
         item.Name = request.Name;
         item.Description = request.Description;
         item.Score = request.Score;
         item.RegionId = request.RegionId;
-        item.ScoreLevelId = request.ScoreLevelId;
 
         context.Items.Update(item);
         await context.SaveChangesAsync();
 
         return Ok(ApiResponse<string>.Success("检查条目更新成功"));
     }
+
 
     [HttpPost("DeleteItem")]
     public async Task<IActionResult> DeleteItem([FromBody] int id)
@@ -187,10 +204,15 @@ public class ItemDto
     public int Score { get; set; }
     public int RegionId { get; set; }
     public string RegionName { get; set; } = null!;
-    public int? ScoreLevelId { get; set; }
-    public string? ScoreLevelName { get; set; }
     public bool? IsScored { get; set; }
-    public int? ScoreValue { get; set; } // 新增属性
+    public int? ScoreValue { get; set; }
+    public List<ItemScoreLevelDto> ScoreLevels { get; set; } = new();
+}
+
+public class ItemScoreLevelDto
+{
+    public int Id { get; set; }
+    public string Name { get; set; } = null!;
 }
 
 public class GetItemsRequest : PagedRequest
@@ -205,7 +227,7 @@ public class CreateItemRequest
     public string? Description { get; set; }
     public int Score { get; set; }
     public int RegionId { get; set; }
-    public int? ScoreLevelId { get; set; }
+    public List<int> ScoreLevelIds { get; set; } = new(); // 添加的属性
 }
 
 public class UpdateItemRequest : CreateItemRequest

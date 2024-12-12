@@ -122,6 +122,7 @@ public class ScoreLevel
     public int UpperBound { get; set; }
     public int LowerBound { get; set; }
     public bool DeleteFlag { get; set; }
+    public ICollection<Item> Items { get; set; } = new List<Item>();
 }
 
 public class Region
@@ -143,8 +144,8 @@ public class Item
     public int Score { get; set; }
     public int RegionId { get; set; }
     public Region Region { get; set; } = null!;
-    public ScoreLevel? ScoreLevel { get; set; }
-    public int? ScoreLevelId;
+    public ICollection<ScoreLevel> ScoreLevels { get; set; } = new List<ScoreLevel>();
+
     public bool DeleteFlag { get; set; }
 }
 

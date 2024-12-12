@@ -124,8 +124,9 @@ public class ScoreController(IDbContextFactory<MyDbContext> contextFactory) : Co
             return BadRequest(ApiResponse<string>.Fail("该项目已存在评分，不能重复评分"));
         }
 
-        // 检查打分是否超过该 Item 的最大分数
+        // 获取Item
         var item = await context.Items
+            .Include(i => i.ScoreLevels) // 加载关联的ScoreLevels
             .FirstOrDefaultAsync(i => i.Id == request.ItemId);
 
         if (item == null)
@@ -133,9 +134,28 @@ public class ScoreController(IDbContextFactory<MyDbContext> contextFactory) : Co
             return NotFound(ApiResponse<string>.Fail("指定的Item未找到"));
         }
 
-        if (request.ScoreValue > item.Score)
+        int finalScore;
+        if (item.ScoreLevels.Any())
         {
-            return BadRequest(ApiResponse<string>.Fail($"评分值不能大于该Item的最大分数 {item.Score}"));
+            // Item包含等级，根据问题数目计算分数
+            var matchingLevel = item.ScoreLevels
+                .FirstOrDefault(sl => request.ProblemCount >= sl.LowerBound && request.ProblemCount <= sl.UpperBound);
+            
+            if (matchingLevel == null)
+            {
+                return BadRequest(ApiResponse<string>.Fail("问题数目不匹配任何等级的上下界"));
+            }
+
+            finalScore = matchingLevel.Score; 
+        }
+        else
+        {
+            if (request.ScoreValue > item.Score)
+            {
+                return BadRequest(ApiResponse<string>.Fail($"评分值不能大于该Item的最大分数 {item.Score}"));
+            }
+
+            finalScore = request.ScoreValue ?? 0;
         }
 
         // 创建打分记录
@@ -143,7 +163,7 @@ public class ScoreController(IDbContextFactory<MyDbContext> contextFactory) : Co
         {
             BatchId = request.BatchId,
             ItemId = request.ItemId,
-            ScoreValue = request.ScoreValue,
+            ScoreValue = finalScore,
             Comment = request.Comment,
             UserId = request.UserId,
             Date = DateTime.UtcNow
@@ -171,6 +191,7 @@ public class ScoreController(IDbContextFactory<MyDbContext> contextFactory) : Co
         return Ok(ApiResponse<string>.Success("打分记录创建成功"));
     }
 
+
     // 更新打分记录
     [HttpPost("UpdateScore")]
     public async Task<IActionResult> UpdateScore([FromBody] UpdateScoreRequest request)
@@ -185,7 +206,43 @@ public class ScoreController(IDbContextFactory<MyDbContext> contextFactory) : Co
             return NotFound(ApiResponse<string>.Fail("打分记录未找到"));
         }
 
-        score.ScoreValue = request.ScoreValue;
+        // 获取Item
+        var item = await context.Items
+            .Include(i => i.ScoreLevels)
+            .FirstOrDefaultAsync(i => i.Id == score.ItemId);
+
+        if (item == null)
+        {
+            return NotFound(ApiResponse<string>.Fail("关联的Item未找到"));
+        }
+
+        int finalScore;
+        if (item.ScoreLevels.Any())
+        {
+            // Item包含等级，根据问题数目计算分数
+            var matchingLevel = item.ScoreLevels
+                .Where(sl => request.ProblemCount >= sl.LowerBound && request.ProblemCount <= sl.UpperBound)
+                .FirstOrDefault();
+
+            if (matchingLevel == null)
+            {
+                return BadRequest(ApiResponse<string>.Fail("问题数目不匹配任何等级的上下界"));
+            }
+
+            finalScore = matchingLevel.Score; // 使用等级得分
+        }
+        else
+        {
+            // Item不包含等级，直接使用请求中的分数
+            if (request.ScoreValue > item.Score)
+            {
+                return BadRequest(ApiResponse<string>.Fail($"评分值不能大于该Item的最大分数 {item.Score}"));
+            }
+
+            finalScore = request.ScoreValue ?? 0;
+        }
+
+        score.ScoreValue = finalScore;
         score.Comment = request.Comment;
 
         context.Scores.Update(score);
@@ -277,9 +334,10 @@ public class CreateScoreRequest
 {
     public int BatchId { get; set; }
     public int ItemId { get; set; }
-    public int ScoreValue { get; set; }
+    public int? ScoreValue { get; set; }
     public string? Comment { get; set; }
     public int UserId { get; set; }
+    public int ProblemCount { get; set; }
 }
 
 public class UpdateScoreRequest : CreateScoreRequest
