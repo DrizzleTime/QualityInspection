@@ -225,6 +225,7 @@ namespace QualityInspection.Controllers
             batch.SummarizeProblem = request.SummarizeProblem;
             batch.SummarizeHighlight = request.SummarizeHighlight;
             batch.SummarizeNeedImprove = request.SummarizeNeedImprove;
+            batch.EndTime = DateTime.UtcNow;
             batch.Note = request.Note;
             batch.Status = 3;
             var userIdClaim = User.Claims.FirstOrDefault(c => c.Type == "UserId");
