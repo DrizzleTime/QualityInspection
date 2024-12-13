@@ -69,7 +69,14 @@ public class ItemController(IDbContextFactory<MyDbContext> contextFactory) : Con
                         .FirstOrDefault()
                     : null,
                 ScoreLevels = i.ScoreLevels
-                    .Select(sl => new ItemScoreLevelDto { Id = sl.Id, Name = sl.Name })
+                    .Select(sl => new ItemScoreLevelDto
+                    {
+                        Id = sl.Id,
+                        Name = sl.Name,
+                        UpperBound = sl.UpperBound,
+                        LowerBound = sl.LowerBound,
+                        Score = sl.Score
+                    })
                     .ToList()
             })
             .ToListAsync();
@@ -102,7 +109,14 @@ public class ItemController(IDbContextFactory<MyDbContext> contextFactory) : Con
                     .Select(s => s.ScoreValue)
                     .FirstOrDefault(),
                 ScoreLevels = i.ScoreLevels
-                    .Select(sl => new ItemScoreLevelDto { Id = sl.Id, Name = sl.Name })
+                    .Select(sl => new ItemScoreLevelDto
+                    {
+                        Id = sl.Id,
+                        Name = sl.Name,
+                        UpperBound = sl.UpperBound,
+                        LowerBound = sl.LowerBound,
+                        Score = sl.Score
+                    })
                     .ToList()
             })
             .FirstOrDefaultAsync();
@@ -233,6 +247,9 @@ public class ItemScoreLevelDto
 {
     public int Id { get; set; }
     public string Name { get; set; } = null!;
+    public int UpperBound { get; set; }
+    public int LowerBound { get; set; }
+    public int Score { get; set; }
 }
 
 public class GetItemsRequest : PagedRequest
