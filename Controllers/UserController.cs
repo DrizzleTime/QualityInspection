@@ -10,7 +10,7 @@ namespace QualityInspection.Controllers;
 [Route("api/[controller]")]
 public class UserController(IDbContextFactory<MyDbContext> contextFactory) : ControllerBase
 {
-    [Authorize(Roles = "Administrator,LeadInspector")]
+    [Authorize(Roles = "Administrator,LeadInspector,ProjectManager")]
     [HttpPost("GetAllUsers")]
     public async Task<IActionResult> GetAllUsers([FromBody] GetAllUsersRequest request)
     {
