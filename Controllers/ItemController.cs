@@ -68,6 +68,12 @@ public class ItemController(IDbContextFactory<MyDbContext> contextFactory) : Con
                         .Select(s => s.ScoreValue)
                         .FirstOrDefault()
                     : null,
+                ScoreComment = request.BatchId.HasValue
+                    ? context.Scores
+                        .Where(s => s.BatchId == request.BatchId.Value && s.ItemId == i.Id)
+                        .Select(s => s.Comment)
+                        .FirstOrDefault()
+                    : null,
                 ScoreLevels = i.ScoreLevels
                     .Select(sl => new ItemScoreLevelDto
                     {
@@ -240,6 +246,7 @@ public class ItemDto
     public string RegionName { get; set; } = null!;
     public bool? IsScored { get; set; }
     public int? ScoreValue { get; set; }
+    public string? ScoreComment{ get; set; }
     public List<ItemScoreLevelDto> ScoreLevels { get; set; } = new();
 }
 
